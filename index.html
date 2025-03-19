@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Added viewport for mobile responsiveness -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OneShot Golf Replays Downloader</title>
   <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
@@ -88,7 +90,6 @@
     const progressDiv = document.getElementById('progress');
     let jsonData = null;
 
-    // yes i know the code could be better
     jsonFileInput.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (file) {
@@ -96,19 +97,23 @@
         reader.onload = (e) => {
           try {
             jsonData = JSON.parse(e.target.result);
+            if (!Array.isArray(jsonData)) {
+              throw new Error('JSON file must contain an array.');
+            }
             downloadButton.disabled = false;
             progressDiv.innerHTML = 'JSON file loaded. Ready to download MP4s.';
           } catch (error) {
-            progressDiv.innerHTML = 'Error parsing JSON file. Please ensure it is valid.';
+            progressDiv.innerHTML = 'Error parsing JSON file: ' + error.message;
             downloadButton.disabled = true;
           }
         };
         reader.readAsText(file);
       }
     });
+
     downloadButton.addEventListener('click', async () => {
       if (!jsonData) {
-        progressDiv.innerHTML = 'Please upload a valid JSON file first.';
+        progressDiv.innerHTML = 'Bruh, Please upload a valid JSON file first.';
         return;
       }
 
@@ -121,7 +126,7 @@
         const url = entry.replayUrl;
         if (url) {
           const filename = url.split('/').pop();
-          progressDiv.innerHTML = `Downloading ${filename} (${count + 1} of ${total})...`;
+          progressDiv.innerHTML += `<br>Downloading ${filename} (${count + 1} of ${total})...`;
           try {
             const response = await fetch(url);
             if (!response.ok) {
@@ -132,7 +137,7 @@
             folder.file(filename, blob);
             count++;
           } catch (error) {
-            progressDiv.innerHTML += `<br>Error downloading ${filename}: ${error}`;
+            progressDiv.innerHTML += `<br>Error downloading ${filename}: ${error.message}`;
           }
         }
       }
