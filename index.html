@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OneShot Golf Replays Downloader</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .container {
+      background: #fff;
+      padding: 2rem;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      text-align: center;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 1rem;
+    }
+    p {
+      color: #666;
+      line-height: 1.5;
+      margin-bottom: 1.5rem;
+    }
+    input[type="file"] {
+      margin: 1rem 0;
+    }
+    button {
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      border: none;
+      background: #007BFF;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    button:hover:not(:disabled) {
+      background: #0056b3;
+    }
+    #progress {
+      margin-top: 1rem;
+      color: #333;
+      min-height: 2em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OneShot Golf Replays Downloader</h1>
+    <p>
+      Upload your JSON file and click the button to download all the MP4 files as a ZIP.
+    </p>
+    <input type="file" id="jsonFile" accept=".json" />
+    <br />
+    <button id="downloadButton" disabled>Download MP4s</button>
+    <div id="progress"></div>
+  </div>
+
+  <script>
+    const jsonFileInput = document.getElementById('jsonFile');
+    const downloadButton = document.getElementById('downloadButton');
+    const progressDiv = document.getElementById('progress');
+    let jsonData = null;
+
+    // yes i know the code could be better
+    jsonFileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            jsonData = JSON.parse(e.target.result);
+            downloadButton.disabled = false;
+            progressDiv.innerHTML = 'JSON file loaded. Ready to download MP4s.';
+          } catch (error) {
+            progressDiv.innerHTML = 'Error parsing JSON file. Please ensure it is valid.';
+            downloadButton.disabled = true;
+          }
+        };
+        reader.readAsText(file);
+      }
+    });
+    downloadButton.addEventListener('click', async () => {
+      if (!jsonData) {
+        progressDiv.innerHTML = 'Please upload a valid JSON file first.';
+        return;
+      }
+
+      const zip = new JSZip();
+      const folder = zip.folder("mp4_files");
+      let count = 0;
+      const total = jsonData.length;
+
+      for (const entry of jsonData) {
+        const url = entry.replayUrl;
+        if (url) {
+          const filename = url.split('/').pop();
+          progressDiv.innerHTML = `Downloading ${filename} (${count + 1} of ${total})...`;
+          try {
+            const response = await fetch(url);
+            if (!response.ok) {
+              progressDiv.innerHTML += `<br>Failed to download ${filename} (Status: ${response.status}).`;
+              continue;
+            }
+            const blob = await response.blob();
+            folder.file(filename, blob);
+            count++;
+          } catch (error) {
+            progressDiv.innerHTML += `<br>Error downloading ${filename}: ${error}`;
+          }
+        }
+      }
+
+      progressDiv.innerHTML += `<br>Creating ZIP file...`;
+      zip.generateAsync({ type: "blob" }).then((content) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = "mp4_files.zip";
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        progressDiv.innerHTML += `<br>Download complete.`;
+      });
+    });
+  </script>
+</body>
+</html>
